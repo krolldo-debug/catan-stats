@@ -12,7 +12,8 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+      {/* pb-20 = space for mobile bottom tab bar */}
+      <main className="flex-1 max-w-6xl mx-auto w-full px-3 py-5 pb-24 sm:px-6 sm:py-8 sm:pb-8">
         <Routes>
           <Route path="/" element={<Dashboard {...gameData} />} />
           <Route path="/history" element={<History {...gameData} />} />
@@ -21,15 +22,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <footer className="text-center py-6 text-stone-600 text-sm font-body">
-        <span className="font-display tracking-widest text-xs text-stone-700">CATAN STATS</span>
-        <span className="mx-3 text-stone-800">·</span>
-        <span className="text-dominic/50">Dome</span>
-        <span className="mx-1 text-stone-800">×</span>
-        <span className="text-dante/50">Dante</span>
-        <span className="mx-1 text-stone-800">×</span>
-        <span className="text-carl/50">Carl</span>
-      </footer>
     </div>
   )
 }
