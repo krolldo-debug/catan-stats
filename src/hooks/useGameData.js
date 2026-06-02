@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react'
 import {
+  STORAGE_VERSION,
   INITIAL_GAME_NIGHTS,
   INITIAL_DUO_DOMINIC_CARL,
   INITIAL_DUO_DOMINIC_DANTE,
 } from '../data/initialData'
+
+// Reset localStorage if data version changed
+const storedVersion = localStorage.getItem('catan_version')
+if (storedVersion !== STORAGE_VERSION) {
+  localStorage.removeItem('catan_game_nights')
+  localStorage.removeItem('catan_duo_carl')
+  localStorage.removeItem('catan_duo_dante')
+  localStorage.setItem('catan_version', STORAGE_VERSION)
+}
 
 function useLocalStorage(key, initialValue) {
   const [value, setValue] = useState(() => {
