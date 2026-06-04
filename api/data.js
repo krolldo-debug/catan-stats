@@ -24,6 +24,7 @@ export default async function handler(req, res) {
         gameNights: body.gameNights,
         duoCarl: body.duoCarl || [],
         duoDante: body.duoDante || [],
+        duoDanteCarl: body.duoDanteCarl || [],
         updatedAt: new Date().toISOString(),
       })
       return res.status(200).json({ ok: true })

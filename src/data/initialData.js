@@ -62,3 +62,5 @@ export const INITIAL_GAME_NIGHTS = [
 export const INITIAL_DUO_DOMINIC_CARL = []
 
 export const INITIAL_DUO_DOMINIC_DANTE = []
+
+export const INITIAL_DUO_DANTE_CARL = []

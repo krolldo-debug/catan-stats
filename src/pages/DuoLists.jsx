@@ -175,7 +175,12 @@ function DuoCard({ playerA, playerB, entries, totals, onAdd, onDelete }) {
   )
 }
 
-export default function DuoLists({ duoCarl, duoDante, duoCarlTotals, duoDanteTotals, addDuoCarlEntry, addDuoDanteEntry, deleteDuoCarlEntry, deleteDuoDanteEntry }) {
+export default function DuoLists({
+  duoCarl, duoDante, duoDanteCarl,
+  duoCarlTotals, duoDanteTotals, duoDanteCarlTotals,
+  addDuoCarlEntry, addDuoDanteEntry, addDuoDanteCarlEntry,
+  deleteDuoCarlEntry, deleteDuoDanteEntry, deleteDuoDanteCarlEntry,
+}) {
   const { dominic, carl, dante } = PLAYERS
 
   return (
@@ -194,25 +199,39 @@ export default function DuoLists({ duoCarl, duoDante, duoCarlTotals, duoDanteTot
         entries={duoDante} totals={duoDanteTotals}
         onAdd={addDuoDanteEntry} onDelete={deleteDuoDanteEntry} />
 
-      {/* Summary */}
+      <DuoCard playerA={dante} playerB={carl}
+        entries={duoDanteCarl} totals={duoDanteCarlTotals}
+        onAdd={addDuoDanteCarlEntry} onDelete={deleteDuoDanteCarlEntry} />
+
+      {/* Summary — all three head-to-heads */}
       <div className="card">
-        <p className="section-title">Dome's Bilanz</p>
-        <div className="grid grid-cols-2 gap-4">
+        <p className="section-title">Alle Duelle</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { label: 'vs Carl', totals: duoCarlTotals, opponent: carl },
-            { label: 'vs Dante', totals: duoDanteTotals, opponent: dante },
-          ].map(({ label, totals: t, opponent }) => {
-            const total = t.dominic + (t[opponent.id] || 0)
+            { a: dominic, b: carl, t: duoCarlTotals },
+            { a: dominic, b: dante, t: duoDanteTotals },
+            { a: dante, b: carl, t: duoDanteCarlTotals },
+          ].map(({ a, b, t }) => {
+            const av = t[a.id] || 0
+            const bv = t[b.id] || 0
+            const total = av + bv
+            const leader = av > bv ? a : av < bv ? b : null
             return (
-              <div key={opponent.id}>
-                <div className="text-xs font-display tracking-wider mb-2" style={{ color: opponent.color }}>{label}</div>
+              <div key={a.id + b.id} className="rounded-lg bg-stone-800/40 border border-stone-700/30 p-3">
+                <div className="text-xs font-display tracking-wider mb-2">
+                  <span style={{ color: a.color }}>{a.short}</span>
+                  <span className="text-stone-600"> vs </span>
+                  <span style={{ color: b.color }}>{b.short}</span>
+                </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-2xl text-dominic">{t.dominic}</span>
+                  <span className="font-mono font-bold text-2xl" style={{ color: a.color }}>{av}</span>
                   <span className="text-stone-700">:</span>
-                  <span className="font-mono font-bold text-2xl" style={{ color: opponent.color }}>{t[opponent.id] || 0}</span>
+                  <span className="font-mono font-bold text-2xl" style={{ color: b.color }}>{bv}</span>
                 </div>
                 <div className="text-stone-600 text-[10px] font-body mt-1">
-                  {total > 0 ? `${((t.dominic / total) * 100).toFixed(0)}% Dome` : '–'}
+                  {total > 0
+                    ? `${total} Spiele · ${leader ? leader.short + ' führt' : 'Gleichstand'}`
+                    : 'Noch keine Spiele'}
                 </div>
               </div>
             )
