@@ -1,68 +1,157 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  STORAGE_VERSION,
   INITIAL_GAME_NIGHTS,
   INITIAL_DUO_DOMINIC_CARL,
   INITIAL_DUO_DOMINIC_DANTE,
 } from '../data/initialData'
 
-// Reset localStorage if data version changed
-const storedVersion = localStorage.getItem('catan_version')
-if (storedVersion !== STORAGE_VERSION) {
-  localStorage.removeItem('catan_game_nights')
-  localStorage.removeItem('catan_duo_carl')
-  localStorage.removeItem('catan_duo_dante')
-  localStorage.setItem('catan_version', STORAGE_VERSION)
+const CACHE_KEY = 'catan_cache_v3'
+
+// Read a local snapshot: new cache key first, then legacy localStorage keys
+// (so data entered before the cloud switch is preserved and can seed the cloud).
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  try {
+    const gn = localStorage.getItem('catan_game_nights')
+    if (gn) {
+      return {
+        gameNights: JSON.parse(gn),
+        duoCarl: JSON.parse(localStorage.getItem('catan_duo_carl') || '[]'),
+        duoDante: JSON.parse(localStorage.getItem('catan_duo_dante') || '[]'),
+      }
+    }
+  } catch { /* ignore */ }
+  return null
 }
 
-function useLocalStorage(key, initialValue) {
-  const [value, setValue] = useState(() => {
-    try {
-      const stored = localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : initialValue
-    } catch {
-      return initialValue
-    }
-  })
-
-  useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value))
-  }, [key, value])
-
-  return [value, setValue]
+function writeCache(data) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)) } catch { /* ignore */ }
 }
 
 export function useGameData() {
-  const [gameNights, setGameNights] = useLocalStorage('catan_game_nights', INITIAL_GAME_NIGHTS)
-  const [duoCarl, setDuoCarl] = useLocalStorage('catan_duo_carl', INITIAL_DUO_DOMINIC_CARL)
-  const [duoDante, setDuoDante] = useLocalStorage('catan_duo_dante', INITIAL_DUO_DOMINIC_DANTE)
+  const [gameNights, setGameNights] = useState([])
+  const [duoCarl, setDuoCarl] = useState([])
+  const [duoDante, setDuoDante] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [offline, setOffline] = useState(false)
 
-  const addGameNight = (entry) => {
-    const newEntry = {
-      ...entry,
-      id: `gn${Date.now()}`,
+  // Save the complete state to the cloud + local cache
+  const persist = useCallback(async (next) => {
+    writeCache(next)
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      if (!res.ok) throw new Error('save failed')
+      setOffline(false)
+    } catch {
+      setOffline(true)
+    } finally {
+      setSyncing(false)
     }
-    setGameNights(prev => [...prev, newEntry].sort((a, b) => a.date.localeCompare(b.date)))
+  }, [])
+
+  // Initial load: show cache instantly, then pull cloud as source of truth
+  useEffect(() => {
+    let cancelled = false
+    const cache = readCache()
+    if (cache) {
+      setGameNights(cache.gameNights || [])
+      setDuoCarl(cache.duoCarl || [])
+      setDuoDante(cache.duoDante || [])
+    }
+
+    ;(async () => {
+      try {
+        const res = await fetch('/api/data')
+        if (!res.ok) throw new Error('load failed')
+        const data = await res.json()
+        if (cancelled) return
+
+        if (data && Array.isArray(data.gameNights)) {
+          // Cloud has data → it wins
+          setGameNights(data.gameNights)
+          setDuoCarl(data.duoCarl || [])
+          setDuoDante(data.duoDante || [])
+          writeCache(data)
+          setOffline(false)
+        } else {
+          // Cloud empty → seed it from this device's data (or the built-in sample)
+          const seed = cache || {
+            gameNights: INITIAL_GAME_NIGHTS,
+            duoCarl: INITIAL_DUO_DOMINIC_CARL,
+            duoDante: INITIAL_DUO_DOMINIC_DANTE,
+          }
+          setGameNights(seed.gameNights)
+          setDuoCarl(seed.duoCarl)
+          setDuoDante(seed.duoDante)
+          await persist(seed)
+        }
+      } catch {
+        // No API reachable (e.g. local `npm run dev`) → run on cache / sample
+        if (cancelled) return
+        if (!cache) {
+          setGameNights(INITIAL_GAME_NIGHTS)
+          setDuoCarl(INITIAL_DUO_DOMINIC_CARL)
+          setDuoDante(INITIAL_DUO_DOMINIC_DANTE)
+        }
+        setOffline(true)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [persist])
+
+  // --- Mutations (each computes the full next state and persists it) ---
+  const addGameNight = (entry) => {
+    const next = [...gameNights, { ...entry, id: `gn${Date.now()}` }]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    setGameNights(next)
+    persist({ gameNights: next, duoCarl, duoDante })
   }
 
   const deleteGameNight = (id) => {
-    setGameNights(prev => prev.filter(gn => gn.id !== id))
+    const next = gameNights.filter(g => g.id !== id)
+    setGameNights(next)
+    persist({ gameNights: next, duoCarl, duoDante })
   }
 
   const addDuoCarlEntry = (entry) => {
-    const newEntry = { ...entry, id: `dc${Date.now()}` }
-    setDuoCarl(prev => [...prev, newEntry].sort((a, b) => a.date.localeCompare(b.date)))
+    const next = [...duoCarl, { ...entry, id: `dc${Date.now()}` }]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    setDuoCarl(next)
+    persist({ gameNights, duoCarl: next, duoDante })
+  }
+
+  const deleteDuoCarlEntry = (id) => {
+    const next = duoCarl.filter(e => e.id !== id)
+    setDuoCarl(next)
+    persist({ gameNights, duoCarl: next, duoDante })
   }
 
   const addDuoDanteEntry = (entry) => {
-    const newEntry = { ...entry, id: `dd${Date.now()}` }
-    setDuoDante(prev => [...prev, newEntry].sort((a, b) => a.date.localeCompare(b.date)))
+    const next = [...duoDante, { ...entry, id: `dd${Date.now()}` }]
+      .sort((a, b) => a.date.localeCompare(b.date))
+    setDuoDante(next)
+    persist({ gameNights, duoCarl, duoDante: next })
   }
 
-  const deleteDuoCarlEntry = (id) => setDuoCarl(prev => prev.filter(e => e.id !== id))
-  const deleteDuoDanteEntry = (id) => setDuoDante(prev => prev.filter(e => e.id !== id))
+  const deleteDuoDanteEntry = (id) => {
+    const next = duoDante.filter(e => e.id !== id)
+    setDuoDante(next)
+    persist({ gameNights, duoCarl, duoDante: next })
+  }
 
-  // Aggregate totals
+  // --- Derived data ---
   const totals = gameNights.reduce(
     (acc, gn) => ({
       dominic: acc.dominic + gn.dominic,
@@ -73,7 +162,6 @@ export function useGameData() {
     { dominic: 0, dante: 0, carl: 0, games: 0 }
   )
 
-  // Cumulative wins over time for line chart
   const cumulativeData = gameNights.reduce((acc, gn) => {
     const prev = acc.length > 0 ? acc[acc.length - 1] : { dominic: 0, dante: 0, carl: 0 }
     acc.push({
@@ -85,7 +173,6 @@ export function useGameData() {
     return acc
   }, [])
 
-  // Monthly aggregation
   const monthlyMap = {}
   gameNights.forEach(gn => {
     const month = gn.date.slice(0, 7)
@@ -96,7 +183,6 @@ export function useGameData() {
   })
   const monthlyData = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month))
 
-  // Current streak (consecutive game nights with at least 1 win)
   const getStreak = (player) => {
     const sorted = [...gameNights].sort((a, b) => b.date.localeCompare(a.date))
     let streak = 0
@@ -107,10 +193,8 @@ export function useGameData() {
     return streak
   }
 
-  // Last 10 nights form
   const last10 = gameNights.slice(-10)
 
-  // Duo totals
   const duoCarlTotals = duoCarl.reduce(
     (acc, e) => ({ dominic: acc.dominic + e.dominic, carl: acc.carl + e.carl }),
     { dominic: 0, carl: 0 }
@@ -121,21 +205,13 @@ export function useGameData() {
   )
 
   return {
-    gameNights,
-    duoCarl,
-    duoDante,
-    totals,
-    cumulativeData,
-    monthlyData,
-    last10,
-    duoCarlTotals,
-    duoDanteTotals,
-    addGameNight,
-    deleteGameNight,
-    addDuoCarlEntry,
-    addDuoDanteEntry,
-    deleteDuoCarlEntry,
-    deleteDuoDanteEntry,
+    gameNights, duoCarl, duoDante,
+    totals, cumulativeData, monthlyData, last10,
+    duoCarlTotals, duoDanteTotals,
+    addGameNight, deleteGameNight,
+    addDuoCarlEntry, addDuoDanteEntry,
+    deleteDuoCarlEntry, deleteDuoDanteEntry,
     getStreak,
+    loading, syncing, offline,
   }
 }
