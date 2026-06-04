@@ -58,6 +58,27 @@ export function useGameData() {
     }
   }, [])
 
+  // Pull the latest from the central DB and apply it (cloud is source of truth)
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/data')
+      if (!res.ok) return false
+      const data = await res.json()
+      if (data && Array.isArray(data.gameNights)) {
+        setGameNights(data.gameNights)
+        setDuoCarl(data.duoCarl || [])
+        setDuoDante(data.duoDante || [])
+        writeCache(data)
+        setOffline(false)
+        return true
+      }
+      return null // cloud reachable but empty
+    } catch {
+      setOffline(true)
+      return false
+    }
+  }, [])
+
   // Initial load: show cache instantly, then pull cloud as source of truth
   useEffect(() => {
     let cancelled = false
@@ -69,47 +90,44 @@ export function useGameData() {
     }
 
     ;(async () => {
-      try {
-        const res = await fetch('/api/data')
-        if (!res.ok) throw new Error('load failed')
-        const data = await res.json()
-        if (cancelled) return
+      const result = await refresh()
+      if (cancelled) return
 
-        if (data && Array.isArray(data.gameNights)) {
-          // Cloud has data → it wins
-          setGameNights(data.gameNights)
-          setDuoCarl(data.duoCarl || [])
-          setDuoDante(data.duoDante || [])
-          writeCache(data)
-          setOffline(false)
-        } else {
-          // Cloud empty → seed it from this device's data (or the built-in sample)
-          const seed = cache || {
-            gameNights: INITIAL_GAME_NIGHTS,
-            duoCarl: INITIAL_DUO_DOMINIC_CARL,
-            duoDante: INITIAL_DUO_DOMINIC_DANTE,
-          }
-          setGameNights(seed.gameNights)
-          setDuoCarl(seed.duoCarl)
-          setDuoDante(seed.duoDante)
-          await persist(seed)
+      if (result === null) {
+        // Cloud reachable but empty → seed once from this device (or sample)
+        const seed = cache || {
+          gameNights: INITIAL_GAME_NIGHTS,
+          duoCarl: INITIAL_DUO_DOMINIC_CARL,
+          duoDante: INITIAL_DUO_DOMINIC_DANTE,
         }
-      } catch {
-        // No API reachable (e.g. local `npm run dev`) → run on cache / sample
-        if (cancelled) return
-        if (!cache) {
-          setGameNights(INITIAL_GAME_NIGHTS)
-          setDuoCarl(INITIAL_DUO_DOMINIC_CARL)
-          setDuoDante(INITIAL_DUO_DOMINIC_DANTE)
-        }
-        setOffline(true)
-      } finally {
-        if (!cancelled) setLoading(false)
+        setGameNights(seed.gameNights)
+        setDuoCarl(seed.duoCarl)
+        setDuoDante(seed.duoDante)
+        await persist(seed)
+      } else if (result === false && !cache) {
+        // No API (e.g. local dev) and nothing cached → show sample data
+        setGameNights(INITIAL_GAME_NIGHTS)
+        setDuoCarl(INITIAL_DUO_DOMINIC_CARL)
+        setDuoDante(INITIAL_DUO_DOMINIC_DANTE)
       }
+      if (!cancelled) setLoading(false)
     })()
 
     return () => { cancelled = true }
-  }, [persist])
+  }, [persist, refresh])
+
+  // Live sync: re-pull whenever the user returns to the app (focus / tab visible)
+  useEffect(() => {
+    const onActive = () => {
+      if (document.visibilityState !== 'hidden') refresh()
+    }
+    window.addEventListener('focus', onActive)
+    document.addEventListener('visibilitychange', onActive)
+    return () => {
+      window.removeEventListener('focus', onActive)
+      document.removeEventListener('visibilitychange', onActive)
+    }
+  }, [refresh])
 
   // --- Mutations (each computes the full next state and persists it) ---
   const addGameNight = (entry) => {
@@ -213,5 +231,6 @@ export function useGameData() {
     deleteDuoCarlEntry, deleteDuoDanteEntry,
     getStreak,
     loading, syncing, offline,
+    refresh,
   }
 }
