@@ -12,7 +12,7 @@ export default function PlayerAvatar({ player, size = 48, crown = false, ring = 
       {crown && (
         <span
           className="absolute left-1/2 -translate-x-1/2 z-10 select-none"
-          style={{ top: `-${Math.round(size * 0.42)}px`, fontSize: `${Math.round(size * 0.5)}px`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.6))' }}
+          style={{ top: `-${Math.round(size * 0.28)}px`, fontSize: `${Math.round(size * 0.46)}px`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.6))' }}
           role="img"
           aria-label="Spitzenreiter"
         >
