@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PLAYERS } from '../data/initialData'
+import PlayerAvatar from '../components/PlayerAvatar'
 
 function formatDateShort(d) {
   const [y, m, day] = d.split('-')
@@ -105,13 +106,15 @@ function DuoCard({ playerA, playerB, entries, totals, onAdd, onDelete }) {
 
           {/* Score */}
           <div className="flex items-center mb-4">
-            <div className="flex-1 text-center">
-              <div className="font-display font-bold leading-none" style={{ fontSize: '3rem', color: playerA.color }}>{aWins}</div>
+            <div className="flex-1 flex flex-col items-center">
+              <PlayerAvatar player={playerA} size={44} />
+              <div className="font-display font-bold leading-none mt-2" style={{ fontSize: '2.6rem', color: playerA.color }}>{aWins}</div>
               <div className="font-display text-[10px] tracking-widest mt-1" style={{ color: `${playerA.color}70` }}>{playerA.name}</div>
             </div>
             <div className="text-stone-600 font-display text-sm px-2">VS</div>
-            <div className="flex-1 text-center">
-              <div className="font-display font-bold leading-none" style={{ fontSize: '3rem', color: playerB.color }}>{bWins}</div>
+            <div className="flex-1 flex flex-col items-center">
+              <PlayerAvatar player={playerB} size={44} />
+              <div className="font-display font-bold leading-none mt-2" style={{ fontSize: '2.6rem', color: playerB.color }}>{bWins}</div>
               <div className="font-display text-[10px] tracking-widest mt-1" style={{ color: `${playerB.color}70` }}>{playerB.name}</div>
             </div>
           </div>

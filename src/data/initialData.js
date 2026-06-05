@@ -1,9 +1,9 @@
 export const STORAGE_VERSION = 'v3'
 
 export const PLAYERS = {
-  dominic: { id: 'dominic', name: 'Dominic', short: 'Dome', color: '#F59E0B', colorDark: '#B45309', colorGlow: 'rgba(245,158,11,0.3)' },
-  dante:   { id: 'dante',   name: 'Dante',   short: 'Dante', color: '#EF4444', colorDark: '#991B1B', colorGlow: 'rgba(239,68,68,0.3)' },
-  carl:    { id: 'carl',    name: 'Carl',    short: 'Carl',  color: '#14B8A6', colorDark: '#0F766E', colorGlow: 'rgba(20,184,166,0.3)' },
+  dominic: { id: 'dominic', name: 'Dominic', short: 'Dome', color: '#F59E0B', colorDark: '#B45309', colorGlow: 'rgba(245,158,11,0.3)', photo: '/players/dominic.jpg' },
+  dante:   { id: 'dante',   name: 'Dante',   short: 'Dante', color: '#EF4444', colorDark: '#991B1B', colorGlow: 'rgba(239,68,68,0.3)', photo: '/players/dante.jpg' },
+  carl:    { id: 'carl',    name: 'Carl',    short: 'Carl',  color: '#14B8A6', colorDark: '#0F766E', colorGlow: 'rgba(20,184,166,0.3)', photo: '/players/carl.jpg' },
 }
 
 // Real game night data — DD.MM.YYYY converted to YYYY-MM-DD.

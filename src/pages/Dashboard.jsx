@@ -3,30 +3,35 @@ import {
   BarChart, Bar, Legend, CartesianGrid
 } from 'recharts'
 import { PLAYERS } from '../data/initialData'
+import PlayerAvatar from '../components/PlayerAvatar'
 
 const PLAYER_LIST = Object.values(PLAYERS)
 
-function StatCard({ player, wins, total, streak }) {
+function StatCard({ player, wins, total, streak, isLeader }) {
   const rate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0'
   return (
-    <div className="card relative overflow-hidden" style={{ borderColor: `${player.color}30` }}>
+    <div className="card relative overflow-hidden"
+      style={{ borderColor: isLeader ? `${player.color}66` : `${player.color}30` }}>
       <div className="absolute inset-0 opacity-10 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at top right, ${player.color} 0%, transparent 65%)` }} />
-      <div className="relative flex items-center justify-between">
-        <div>
+      <div className="relative flex items-center gap-4">
+        <PlayerAvatar player={player} size={58} crown={isLeader} />
+        <div className="flex-1 min-w-0">
           <div className="font-display text-[10px] tracking-[0.2em] uppercase mb-1" style={{ color: player.color }}>
             {player.name}
           </div>
-          <div className="font-display font-bold leading-none" style={{ fontSize: '2.4rem', color: player.color }}>
-            {wins}
+          <div className="flex items-end gap-2">
+            <span className="font-display font-bold leading-none" style={{ fontSize: '2.3rem', color: player.color }}>
+              {wins}
+            </span>
+            <span className="text-stone-500 text-xs mb-1">Siege</span>
           </div>
-          <div className="text-stone-500 text-xs mt-1">Siege</div>
         </div>
-        <div className="text-right">
-          <div className="font-mono text-2xl font-bold text-stone-200">{rate}%</div>
-          <div className="text-stone-500 text-xs mt-1">Siegrate</div>
-          <div className="text-xs mt-2 font-body" style={{ color: `${player.color}99` }}>
-            Serie: <span className="font-bold" style={{ color: player.color }}>{streak}</span>
+        <div className="text-right shrink-0">
+          <div className="font-mono text-xl font-bold text-stone-200">{rate}%</div>
+          <div className="text-stone-500 text-[10px]">Siegrate</div>
+          <div className="text-[11px] mt-1.5 font-body" style={{ color: `${player.color}99` }}>
+            Serie <span className="font-bold" style={{ color: player.color }}>{streak}</span>
           </div>
         </div>
       </div>
@@ -71,6 +76,7 @@ function formatDateShort(d) {
 
 export default function Dashboard({ totals, cumulativeData, monthlyData, gameNights, getStreak }) {
   const recentNights = [...gameNights].reverse().slice(0, 5)
+  const maxWins = Math.max(totals.dominic, totals.dante, totals.carl)
 
   return (
     <div className="space-y-4">
@@ -92,6 +98,7 @@ export default function Dashboard({ totals, cumulativeData, monthlyData, gameNig
             wins={totals[player.id]}
             total={totals.games}
             streak={getStreak(player.id)}
+            isLeader={totals[player.id] === maxWins && maxWins > 0}
           />
         ))}
       </div>
